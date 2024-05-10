@@ -5,8 +5,7 @@ variable "principal" {
 }
 
 variable "external_id" {
-  default     = "2eCuy2PXAOhJON7d5L47yXA6FW3"
-  description = "The external id that Alphaus cloud will use to assume the role ARN. Do not change."
+  description = "The external id that Alphaus cloud will use to assume the role ARN. This can be get from the provided sample terraform file layout in Octo"
   type        = string
 }
 
