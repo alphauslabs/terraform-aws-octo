@@ -1,6 +1,6 @@
 provider "aws" {
   region     = "us-east-1"
-  access_key = var.acces_key
+  access_key = var.access_key
   secret_key = var.secret_key
 }
 
@@ -10,8 +10,9 @@ data "aws_organizations_organization" "org" {}
 
 locals {
   # Checking if current account is a master account
-  isroot = data.aws_caller_identity.current.account_id == data.aws_organizations_organization.org.master_account_id
+  isMaster = data.aws_caller_identity.current.account_id == data.aws_organizations_organization.org.master_account_id
 }
+
 
 # Alphaus account access role creation
 resource "aws_iam_role" "alphaus_acct_access_role" {
@@ -987,25 +988,52 @@ data "aws_iam_policy_document" "cs_assume_role" {
     actions = ["sts:AssumeRole"]
   }
 }
-output "isroot" {
-  value = local.isroot
+
+
+# PAYER ONLY
+
+# StackSet
+resource "aws_cloudformation_stack_set" "apiaccess" {
+
+  count            = var.use_stackset && local.isMaster ? 1 : 0
+  name             = var.stackset_name
+  permission_model = "SERVICE_MANAGED"
+  template_url     = "https://cover-cloudformation-templates.s3.ap-northeast-1.amazonaws.com/coverapiaccess-v1.yml"
+  parameters = {
+    Principal  = var.principal
+    ExternalId = var.external_id
+  }
+  managed_execution {
+    active = true
+  }
+  auto_deployment {
+    enabled                          = true
+    retain_stacks_on_account_removal = false
+  }
+  operation_preferences {
+    max_concurrent_count    = 1
+    failure_tolerance_count = 0
+    region_concurrency_type = "SEQUENTIAL"
+    region_order            = ["us-east-1"]
+  }
 }
+
 
 # S3 bucket creation
 resource "aws_s3_bucket" "s3_bucket_resource" {
-  count  = local.isroot ? 1 : 0
+  count  = local.isMaster ? 1 : 0
   bucket = var.cur_s3_bucket_name
 }
 
-# s3 bucket policy 
+# S3 bucket policy 
 resource "aws_s3_bucket_policy" "s3_bucket_policy" {
-  count      = local.isroot ? 1 : 0
+  count      = local.isMaster ? 1 : 0
   bucket     = var.cur_s3_bucket_name
   depends_on = [aws_s3_bucket.s3_bucket_resource[0]]
   policy     = data.aws_iam_policy_document.s3_bucket_policy_document.json
 }
 
-# s3 bucket policy document
+# S3 bucket policy document
 data "aws_iam_policy_document" "s3_bucket_policy_document" {
   version = "2012-10-17"
   statement {
@@ -1042,7 +1070,7 @@ data "aws_iam_policy_document" "s3_bucket_policy_document" {
 
 # Cur report definition
 resource "aws_cur_report_definition" "cur_report_def" {
-  count                      = local.isroot ? 1 : 0
+  count                      = local.isMaster ? 1 : 0
   additional_schema_elements = ["RESOURCES"]
   compression                = "ZIP"
   format                     = "textORcsv"
@@ -1057,7 +1085,7 @@ resource "aws_cur_report_definition" "cur_report_def" {
 
 # AcctAccessCurRole
 resource "aws_iam_role" "AlphausAcctAccessCurRole" {
-  count                = local.isroot ? 1 : 0
+  count                = local.isMaster ? 1 : 0
   name                 = "AlphausAcctAccessCurRole"
   max_session_duration = 43200
   assume_role_policy   = data.aws_iam_policy_document.assume_role_policy.json

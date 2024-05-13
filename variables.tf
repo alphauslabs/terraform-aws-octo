@@ -1,12 +1,37 @@
-variable "principal" {
-  default     = "131920598436"
-  description = "The Alphaus account that will have access to your account. Do not change."
+variable "access_key" {
+  description = "The access key of you AWS account. (For authentication purpose only.)"
   type        = string
+}
+
+variable "secret_key" {
+  description = "The secret key of you AWS account. (For authentication purpose only.)"
+  type        = string
+}
+
+variable "use_stackset" {
+  description = "(Only applicable on Master account) Use stackset to deploy API Access to all sub-accounts. (True if you want to deploy api access to all sub-accounts under organization or False if you want to deploy to a single account)"
+  type        = bool
+  validation {
+    condition     = var.use_stackset == true || var.use_stackset == false
+    error_message = "use_stackset must be either true or false"
+  }
 }
 
 variable "external_id" {
   description = "The external id that Alphaus cloud will use to assume the role ARN. This can be get from the provided sample terraform file layout in Octo"
   type        = string
+}
+
+# With default values
+variable "principal" {
+  default     = "131920598436"
+  description = "The Alphaus account that will have access to your account. Do not change."
+  type        = string
+
+  validation {
+    condition     = var.principal == "131920598436"
+    error_message = "Do not change the principal value."
+  }
 }
 
 variable "cur_s3_bucket_option" {
@@ -39,12 +64,9 @@ variable "cur_report_name" {
   type        = string
 }
 
-variable "acces_key" {
-  description = "The access key of you AWS account. (Note: We do not store this information)"
+variable "stackset_name" {
+  default     = "alphaus-api-access-stackset"
+  description = "The name of the stackset that will be created."
   type        = string
 }
 
-variable "secret_key" {
-  description = "The secret key of you AWS account. (Note: We do not store this information)"
-  type        = string
-}
