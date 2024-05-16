@@ -1,7 +1,7 @@
 provider "aws" {
   region     = "us-east-1"
-  access_key = var.access_key
-  secret_key = var.secret_key
+  access_key = var.access_key != "" ? var.access_key : ""
+  secret_key = var.secret_key != "" ? var.secret_key : ""
 }
 
 data "aws_caller_identity" "current" {}
@@ -994,7 +994,6 @@ data "aws_iam_policy_document" "cs_assume_role" {
 
 # StackSet
 resource "aws_cloudformation_stack_set" "apiaccess" {
-
   count            = var.use_stackset && local.isMaster ? 1 : 0
   name             = var.stackset_name
   permission_model = "SERVICE_MANAGED"

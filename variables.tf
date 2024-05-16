@@ -1,25 +1,26 @@
 variable "access_key" {
-  description = "The access key of you AWS account. (For authentication purpose only.)"
+  description = "(For authentication purpose only) The access key of your AWS account. Leave empty when using AWS CLI."
   type        = string
 }
 
 variable "secret_key" {
-  description = "The secret key of you AWS account. (For authentication purpose only.)"
+  description = "(For authentication purpose only) The secret key of your AWS account. Leave empty when using AWS CLI."
   type        = string
 }
 
 variable "use_stackset" {
-  description = "(Only applicable on Master account) Use stackset to deploy API Access to all sub-accounts. (True if you want to deploy api access to all sub-accounts under organization or False if you want to deploy to a single account)"
+  description = "(Only applicable on Master account) Use stackset to deploy API Access to all sub-accounts. (Only set to True if you want to deploy api access to all sub-accounts under organization)"
   type        = bool
-  validation {
-    condition     = var.use_stackset == true || var.use_stackset == false
-    error_message = "use_stackset must be either true or false"
-  }
 }
 
 variable "external_id" {
   description = "The external id that Alphaus cloud will use to assume the role ARN. This can be get from the provided sample terraform file layout in Octo"
   type        = string
+  
+  validation {
+    condition     = length(var.external_id) != 0 || var.external_id != null
+    error_message = "External ID must not be empty"
+  }
 }
 
 # With default values
