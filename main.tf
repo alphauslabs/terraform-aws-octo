@@ -5,12 +5,122 @@ provider "aws" {
 }
 
 data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
 data "aws_region" "current" {}
 data "aws_organizations_organization" "org" {}
 
 locals {
   # Checking if current account is a master account
   isMaster = data.aws_caller_identity.current.account_id == data.aws_organizations_organization.org.master_account_id
+}
+
+
+resource "aws_iam_role" "octo_change_executor_role" {
+  name = "OctoChangeExecutorRole"
+  max_session_duration = 43200
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ssm.amazonaws.com"
+          AWS     = "${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action = ["sts:AssumeRole"]
+      }
+    ]
+  })
+
+  managed_policy_arns = [
+    "arn:aws:iam::aws:policy/AdministratorAccess"
+  ]
+}
+
+resource "aws_iam_role" "octo_ssm_updater_role" {
+  name = "OctoSSMUpdaterRole"
+  max_session_duration = 43200
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "sts:AssumeRole"
+        Condition = {
+          StringEquals = {
+            "sts:ExternalId" = var.external_id
+          }
+        }
+        Principal = {
+          AWS = var.principal
+        }
+      }
+    ]
+  })
+
+  inline_policy {
+    name = "OctoSSMUpdaterPolicy"
+    policy = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Effect   = "Allow"
+          Action   = "iam:PassRole"
+          Resource = aws_iam_role.octo_change_executor_role.arn
+        },
+        {
+          Effect   = "Allow"
+          Action   = [
+            "ssm:StartChangeRequestExecution",
+            "ssm:SendAutomationSignal",
+            "ssm:CreateDocument"
+          ]
+          Resource = "*"
+        }
+      ]
+    })
+  }
+}
+
+resource "aws_iam_role" "octo_change_template_approver_role" {
+  name = "OctoChangeTemplateApproverRole"
+  max_session_duration = 43200
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          AWS = "${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action = ["sts:AssumeRole"]
+      }
+    ]
+  })
+
+  inline_policy {
+    name = "OctoChangeTemplateApproverPolicy"
+    policy = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Effect = "Allow"
+          Action = [
+            "ssm:List*",
+            "ssm:Get*",
+            "ssm:Describe*",
+            "ssm:UpdateDocumentMetadata",
+            "ssm:UpdateDocument",
+            "ssm:SendAutomationSignal"
+          ]
+          Resource = "*"
+        }
+      ]
+    })
+  }
 }
 
 
